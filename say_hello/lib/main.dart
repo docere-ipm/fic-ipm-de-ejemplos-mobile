@@ -47,6 +47,7 @@ class _SayHelloHomePageState extends State<SayHelloHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
+            // El test descubre que aquí hay un error
             Text(
               'I have said hello $_counter times',
               style: Theme.of(context).textTheme.headline4,
