@@ -51,11 +51,13 @@ class _SayHelloHomePageState extends State<SayHelloHomePage> {
               'I have said hello $_counter times',
               style: Theme.of(context).textTheme.headline4,
             ),
-            // El botón es difícil de tocar porque está muy cerca de los otros
-            // elementos y es muy pequeño
+            const SizedBox(height: 30),
             ElevatedButton(
               onPressed: _incrementCounter,
-              child: const Text('Say Hello'),
+              child: const Padding(
+                padding: EdgeInsets.all(16),
+                child: const Text('Say Hello'),
+              ),
             ),
           ],
         ),
