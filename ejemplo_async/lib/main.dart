@@ -61,10 +61,10 @@ class _ListFromFileState extends State<ListFromFile> {
   }
 
   // Este método hace E/S, si no lo marcamos como asíncrono, no compila
-  void _loadData() {
+  Future<void> _loadData() async {
     AssetBundle asset = DefaultAssetBundle.of(context);
     try {
-      String json = await asset.loadString('data/breeds_list.json');
+      String json = await asset.loadString('data/breeds_list.jsona');
       Map data = jsonDecode(json);
       setState(() {
           _error = false;
@@ -93,7 +93,7 @@ class _ListFromFileState extends State<ListFromFile> {
           child: Column(
             children: <Widget>[
               Image.asset('images/snoopy-penalty-box.gif'),
-              Text('There was a error reading file'),
+              Text('There was a error reading the file'),
             ],
           ),
         ),
@@ -117,18 +117,3 @@ class _ListFromFileState extends State<ListFromFile> {
   }
 }
 
-
-class BreedDetail extends StatelessWidget {
-  final String breed;
-
-  const BreedDetail({required this.breed});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: InkWell(
-        child: Image.asset('images/avatar-snoopy.jpeg'),
-      )
-    );
-  }
-}
