@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 
@@ -146,13 +147,32 @@ class MasterAndDetailScreen extends StatelessWidget {
 /*
  * Widgets con el contenido de las pantallas
  */
-const List<String> data = [ "Affenpinscher", "Pomeranian" ];
-
-
-class BreedsList extends StatelessWidget {
+class BreedsList extends StatefulWidget {
   final void Function(String breed) onBreedSelected;
 
   BreedsList({required this.onBreedSelected});
+
+  @override
+  _BreedsListState createState() => _BreedsListState();
+}
+
+
+class _BreedsListState extends State<BreedsList> {
+  Future<List<String>>? _breeds;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _breeds = _loadData();
+  }
+
+  Future<List<String>> _loadData() async {
+    AssetBundle asset = DefaultAssetBundle.of(context);
+    String json = await asset.loadString('data/breeds_list.json');
+    Map data = jsonDecode(json);
+    return data['message'].keys.toList();
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -160,14 +180,39 @@ class BreedsList extends StatelessWidget {
       fontSize: Theme.of(context).textTheme.
       headline5?.fontSize
     );
-  
-    return ListView.builder(
-      itemCount: data.length,
-      itemBuilder: (BuildContext context, int i) =>
-      ListTile(
-        title: Text(data[i], style: fontStyle),
-        onTap: () { this.onBreedSelected(data[i]); },
-      )
+
+    return FutureBuilder(
+      future: _breeds,
+      builder: (BuildContext context, AsyncSnapshot<List<String>> snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: SingleChildScrollView(
+              child: Column(
+                children: <Widget>[
+                  Image.asset('images/snoopy-penalty-box.gif'),
+                  Text('There was a error reading the file'),
+                ],
+              ),
+            ),
+          );
+        }
+        else if (snapshot.connectionState != ConnectionState.done) {
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+        else {
+          List<String> data = snapshot.data!;
+          return ListView.builder(
+            itemCount: data.length,
+            itemBuilder: (BuildContext context, int i) =>
+            ListTile(
+              title: Text(data[i], style: fontStyle),
+              onTap: () { widget.onBreedSelected(data[i]); },
+            )
+          );
+        }
+      },
     );
   }
 }
