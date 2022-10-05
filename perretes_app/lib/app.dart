@@ -1,10 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+
+
 import 'package:flutter/material.dart';
 
 
 const String app_title = "Perretes App";
 const int breakPoint = 600;
-
+const DogCEOClient client = DogCEOClient();
 
 class PerretesApp extends StatelessWidget {
   final String title;
@@ -132,7 +136,7 @@ class MasterAndDetailScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                   )
                 )
-                : BreedDetail(breed: breed)
+                : BreedDetail(key: ValueKey(breed), breed: breed)
                 ;
               },
             ),
@@ -218,17 +222,88 @@ class _BreedsListState extends State<BreedsList> {
 }
 
 
-class BreedDetail extends StatelessWidget {
+class BreedDetail extends StatefulWidget {
   final String breed;
 
-  const BreedDetail({required this.breed});
+  const BreedDetail({required this.breed, key}) : super(key: key);
 
   @override
+  _BreedDetailState createState() => _BreedDetailState();
+}
+
+class _BreedDetailState extends State<BreedDetail> {
+  Future<String>? _randomUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+  
+  @override
   Widget build(BuildContext context) {
-    return Center(
-      child: InkWell(
-        child: Image.asset('images/avatar-snoopy.jpeg'),
-      )
-    );
+    return FutureBuilder<String> (
+      future: _randomUrl,
+      builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: SingleChildScrollView(
+              child: Column(
+                children: <Widget>[
+                  Image.asset('images/snoopy-penalty-box.gif'),
+                  Text('There was a network error'),
+                  ElevatedButton(
+                    child: Text('Try again'),
+                    onPressed: () { _reload(); },
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        else if (snapshot.connectionState != ConnectionState.done) {
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+        else {
+          return Center(
+            child: InkWell(
+              child: Image.network(
+                snapshot.data!,
+              ),
+              onTap: () { _reload(); },
+            )
+          );
+        }
+      },
+    );  
+  }
+
+  void _reload() {
+    Future<String> url = client.loadBreedImageURL(widget.breed);
+    setState(() { _randomUrl = url; });
+  }
+}
+
+
+/*
+ * Cliente del servidor.
+ */
+class DogCEOClient {
+  const DogCEOClient();
+  
+  Future<String> loadBreedImageURL(String breed) async {
+    String url = "http://dog.ceo/api/breed/${breed}/images/random";
+    HttpClient httpClient = HttpClient();
+
+    HttpClientRequest request = await httpClient.getUrl(Uri.parse(url));
+    HttpClientResponse response = await request.close();
+    if (response.statusCode != HttpStatus.OK) {
+      throw 'Error getting IP address:\nHttp status ${response.statusCode}';
+    }
+    String json = await response.transform(utf8.decoder).join();
+    Map data = jsonDecode(json);
+    return data['message'];
   }
 }
