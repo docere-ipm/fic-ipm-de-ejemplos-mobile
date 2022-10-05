@@ -51,33 +51,20 @@ class ListFromFile extends StatefulWidget {
 
 
 class _ListFromFileState extends State<ListFromFile> {
-  List<String>? _breeds;
-  bool _error = false;
+  Future<List<String>>? _breeds;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _breeds = _loadData();
   }
 
   // Este método hace E/S, si no lo marcamos como asíncrono, no compila
-  Future<void> _loadData() async {
+  Future<List<String>> _loadData() async {
     AssetBundle asset = DefaultAssetBundle.of(context);
-    try {
-      String json = await asset.loadString('data/breeds_list.jsona');
-      Map data = jsonDecode(json);
-      setState(() {
-          _error = false;
-          _breeds = data['message'].keys.toList();
-        }
-      );
-    }
-    on FlutterError {
-      setState(() {
-          _error = true;
-        }
-      );
-    }
+    String json = await asset.loadString('data/breeds_list.json');
+    Map data = jsonDecode(json);
+    return data['message'].keys.toList();
   }
   
   @override
@@ -87,33 +74,39 @@ class _ListFromFileState extends State<ListFromFile> {
       headline5?.fontSize
     );
 
-    if (_error) {
-      return Center(
-        child: SingleChildScrollView(
-          child: Column(
-            children: <Widget>[
-              Image.asset('images/snoopy-penalty-box.gif'),
-              Text('There was a error reading the file'),
-            ],
-          ),
-        ),
-      );
-    }
-    else if (_breeds == null) {
-      return Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-    else {
-      List<String> data = _breeds!;
-      return ListView.builder(
-        itemCount: data.length,
-        itemBuilder: (BuildContext context, int i) =>
-        ListTile(
-          title: Text(data[i], style: fontStyle),
-        )
-      );
-    }
+    // Reducimos boilerplate usando un Widget de la librería.
+    return FutureBuilder(
+      future: _breeds,
+      builder: (BuildContext context, AsyncSnapshot<List<String>> snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: SingleChildScrollView(
+              child: Column(
+                children: <Widget>[
+                  Image.asset('images/snoopy-penalty-box.gif'),
+                  Text('There was a error reading the file'),
+                ],
+              ),
+            ),
+          );
+        }
+        else if (snapshot.connectionState != ConnectionState.done) {
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+        else {
+          List<String> data = snapshot.data!;
+          return ListView.builder(
+            itemCount: data.length,
+            itemBuilder: (BuildContext context, int i) =>
+            ListTile(
+              title: Text(data[i], style: fontStyle),
+            )
+          );
+        };
+      },
+    );
   }
 }
 
