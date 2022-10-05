@@ -60,19 +60,28 @@ class BreedsListScreen extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
+    final TextStyle fontStyle = TextStyle(
+      fontSize: Theme.of(context).textTheme.
+      headline5?.fontSize
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: Text(this.title),
       ),
       body: BreedsList(
-        onBreedSelected: (String breed) async {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => BreedDetailScreen(breed: breed),
-            ),
-          );
-        }
+        tileBuilder: (String breed) => ListTile(
+          title: Text(breed, style: fontStyle),
+          trailing: Icon(Icons.keyboard_arrow_right),
+          onTap: () async {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BreedDetailScreen(breed: breed),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -108,27 +117,36 @@ class MasterAndDetailScreen extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
+    final TextStyle fontStyle = TextStyle(
+      fontSize: Theme.of(context).textTheme.
+      headline5?.fontSize
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: Text(app_title),
       ),
-      body: Row(
-        children: <Widget>[
-          Flexible(
-            flex: 13,
-            child: Material(
-              elevation: 4.0,
-              child: BreedsList(
-                onBreedSelected: (String breed) { _breed.value = breed; }
+      body: ValueListenableBuilder(
+        valueListenable: _breed,
+        builder: (BuildContext context, String? breed, Widget? child) =>
+        Row(
+          children: <Widget>[
+            Flexible(
+              flex: 13,
+              child: Material(
+                elevation: 4.0,
+                child: BreedsList(
+                  tileBuilder: (String breed) => ListTile(
+                    title: Text(breed, style: fontStyle),
+                    selected: _breed.value == breed,
+                    onTap: () { _breed.value = breed; },
+                  ),
+                ),
               ),
             ),
-          ),
-          Flexible(
-            flex: 27,
-            child: ValueListenableBuilder(
-              valueListenable: _breed,
-              builder: (BuildContext context, String? breed, Widget? child) {
-                return breed == null
+            Flexible(
+              flex: 27,
+              child: breed == null
                 ? Center(
                   child: Text(
                     'Please select a breed from the list',
@@ -136,12 +154,10 @@ class MasterAndDetailScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                   )
                 )
-                : BreedDetail(key: ValueKey(breed), breed: breed)
-                ;
-              },
-            ),
-          ),
-        ]
+                : BreedDetail(key: ValueKey(breed), breed: breed),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -152,9 +168,9 @@ class MasterAndDetailScreen extends StatelessWidget {
  * Widgets con el contenido de las pantallas
  */
 class BreedsList extends StatefulWidget {
-  final void Function(String breed) onBreedSelected;
+  final Widget Function(String breed) tileBuilder;
 
-  BreedsList({required this.onBreedSelected});
+  BreedsList({required this.tileBuilder});
 
   @override
   _BreedsListState createState() => _BreedsListState();
@@ -209,11 +225,7 @@ class _BreedsListState extends State<BreedsList> {
           List<String> data = snapshot.data!;
           return ListView.builder(
             itemCount: data.length,
-            itemBuilder: (BuildContext context, int i) =>
-            ListTile(
-              title: Text(data[i], style: fontStyle),
-              onTap: () { widget.onBreedSelected(data[i]); },
-            )
+            itemBuilder: (BuildContext context, int i) => widget.tileBuilder(data[i]),
           );
         }
       },
