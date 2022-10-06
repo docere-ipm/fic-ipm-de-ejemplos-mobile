@@ -62,7 +62,7 @@ class BreedsListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextStyle fontStyle = TextStyle(
       fontSize: Theme.of(context).textTheme.
-      headline5?.fontSize
+      headline4?.fontSize
     );
 
     return Scaffold(
