@@ -2,13 +2,48 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
+
+// 😉 😉, :nudge: :nudge:
+typedef LoadDataFunction = Future<List<String>> Function();
+
+
 void main() {
-  runApp(const App());
+  LoadDataFunction loadDataFun;
+
+  const load = String.fromEnvironment("LOAD");
+  // use with `flutter run --dart-define="LOAD=error"`
+  // https://en.wikipedia.org/wiki/Dependency_injection
+  if (load == "error") {
+    loadDataFun = loadError;
+  }
+  else {
+    loadDataFun = loadData;
+  }
+
+  runApp(AppContext(
+      child: const App(),
+      loadDataFun: loadDataFun,
+  ));
 }
 
 
 const String app_title = "Perretes App";
 
+
+class AppContext extends InheritedWidget {
+  AppContext({super.key, required super.child, required this.loadDataFun});
+
+  final LoadDataFunction loadDataFun;
+
+  static AppContext of(BuildContext context) {
+    final AppContext? result = context.dependOnInheritedWidgetOfExactType<AppContext>();
+    assert(result != null, 'No AppContext found in context');
+    return result!;
+  }
+
+  @override
+  bool updateShouldNotify(AppContext old) => this.loadDataFun != old.loadDataFun;
+}
 
 class App extends StatelessWidget {
   final String title;
@@ -39,21 +74,16 @@ class ListFromFileScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(this.title),
       ),
-      body: ListFromFile()
+      body: ListFromFile(breeds: AppContext.of(context).loadDataFun())
     );
   }
 }
 
 
-Future<List<String>> _loadData() async {
-  String json = await rootBundle.loadString('data/breeds_list.json');
-  Map data = jsonDecode(json);
-  return data['message'].keys.toList();
-}
-
-
 class ListFromFile extends StatelessWidget {
-  Future<List<String>> _breeds = _loadData();
+  final Future<List<String>> breeds;
+
+  ListFromFile({required this.breeds});
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +94,7 @@ class ListFromFile extends StatelessWidget {
 
     // Reducimos boilerplate usando un Widget de la librería.
     return FutureBuilder(
-      future: _breeds,
+      future: breeds,
       builder: (BuildContext context, AsyncSnapshot<List<String>> snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -97,4 +127,20 @@ class ListFromFile extends StatelessWidget {
     );
   }
 }
+
+
+
+Future<List<String>> loadData() async {
+  String json = await rootBundle.loadString('data/breeds_list.json');
+  Map data = jsonDecode(json);
+  return data['message'].keys.toList();
+}
+
+
+Future<List<String>> loadError() async {
+  await Future.delayed(Duration(seconds: 2));
+  throw FlutterError("could not read file");
+}
+
+
 
