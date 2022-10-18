@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 void main() {
   runApp(const App());
@@ -44,29 +45,16 @@ class ListFromFileScreen extends StatelessWidget {
 }
 
 
-class ListFromFile extends StatefulWidget {
-  @override
-  _ListFromFileState createState() => _ListFromFileState();
+Future<List<String>> _loadData() async {
+  String json = await rootBundle.loadString('data/breeds_list.json');
+  Map data = jsonDecode(json);
+  return data['message'].keys.toList();
 }
 
 
-class _ListFromFileState extends State<ListFromFile> {
-  Future<List<String>>? _breeds;
+class ListFromFile extends StatelessWidget {
+  Future<List<String>> _breeds = _loadData();
 
-  @override
-  void initState() {
-    super.initState();
-    _breeds = _loadData();
-  }
-
-  // Este método hace E/S, si no lo marcamos como asíncrono, no compila
-  Future<List<String>> _loadData() async {
-    AssetBundle asset = DefaultAssetBundle.of(context);
-    String json = await asset.loadString('data/breeds_list.json');
-    Map data = jsonDecode(json);
-    return data['message'].keys.toList();
-  }
-  
   @override
   Widget build(BuildContext context) {
     final TextStyle fontStyle = TextStyle(
