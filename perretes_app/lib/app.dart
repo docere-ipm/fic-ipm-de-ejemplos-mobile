@@ -4,6 +4,7 @@ import 'dart:io';
 
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 
 const String app_title = "Perretes App";
@@ -167,33 +168,12 @@ class MasterAndDetailScreen extends StatelessWidget {
 /*
  * Widgets con el contenido de las pantallas
  */
-class BreedsList extends StatefulWidget {
+class BreedsList extends StatelessWidget {
+  final Future<List<String>> _breeds = loadData();
   final Widget Function(String breed) tileBuilder;
-
+  
   BreedsList({required this.tileBuilder});
 
-  @override
-  _BreedsListState createState() => _BreedsListState();
-}
-
-
-class _BreedsListState extends State<BreedsList> {
-  Future<List<String>>? _breeds;
-  bool _error = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _breeds = _loadData();
-  }
-
-  Future<List<String>> _loadData() async {
-    AssetBundle asset = DefaultAssetBundle.of(context);
-    String json = await asset.loadString('data/breeds_list.json');
-    Map data = jsonDecode(json);
-    return data['message'].keys.toList();
-  }
-  
   @override
   Widget build(BuildContext context) {
     final TextStyle fontStyle = TextStyle(
@@ -225,7 +205,7 @@ class _BreedsListState extends State<BreedsList> {
           List<String> data = snapshot.data!;
           return ListView.builder(
             itemCount: data.length,
-            itemBuilder: (BuildContext context, int i) => widget.tileBuilder(data[i]),
+            itemBuilder: (BuildContext context, int i) => tileBuilder(data[i]),
           );
         }
       },
@@ -283,6 +263,19 @@ class _BreedDetailState extends State<BreedDetail> {
             child: InkWell(
               child: Image.network(
                 snapshot.data!,
+                loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                  if (loadingProgress == null) {
+                    return child;
+                  }
+                  double? value = loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                  : null;
+                  return Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 40),
+                    child: LinearProgressIndicator(value: value),
+                  );
+                },
               ),
               onTap: () { _reload(); },
             )
@@ -319,3 +312,14 @@ class DogCEOClient {
     return data['message'];
   }
 }
+
+
+/*
+ * Leer fichero de datos
+ */ 
+Future<List<String>> loadData() async {
+  String json = await rootBundle.loadString('data/breeds_list.json');
+  Map data = jsonDecode(json);
+  return data['message'].keys.toList();
+}
+  
