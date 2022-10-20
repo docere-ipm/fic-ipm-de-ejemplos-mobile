@@ -4,12 +4,44 @@ import 'dart:io';
 
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 
 
 const String app_title = "Perretes App";
 const int breakPoint = 600;
-const DogCEOClient client = DogCEOClient();
+
+
+class PerretesContext extends InheritedWidget {
+  PerretesContext({
+      super.key,
+      required super.child,
+      required this.breeds,
+      required this.photosStream,
+      required this.breedStreamController,
+  });
+
+  final Future<List<String>> breeds;
+  final Stream<String> photosStream;
+  final StreamController<String> breedStreamController;
+  // Compartimos la selección entre todas las pantallas
+  final ValueNotifier<String?> selectedBreed = ValueNotifier<String?>(null);
+
+  void setSelected(String? breed) {
+    selectedBreed.value = breed;
+    if (breed != null) {
+      breedStreamController.add(breed);
+    }
+  }
+  
+  static PerretesContext of(BuildContext context) {
+    final PerretesContext? result = context.dependOnInheritedWidgetOfExactType<PerretesContext>();
+    assert(result != null, 'No PerretesContext found in context');
+    return result!;
+  }
+
+  @override
+  bool updateShouldNotify(PerretesContext old) => false;
+}
+
 
 class PerretesApp extends StatelessWidget {
   final String title;
@@ -43,7 +75,13 @@ class MasterDetail extends StatelessWidget {
           constraints.smallest.longestSide > breakPoint &&
           MediaQuery.of(context).orientation == Orientation.landscape
         );
-        return chooseMasterAndDetail ? MasterAndDetailScreen(title: title) : BreedsListScreen(title: title);
+        if (chooseMasterAndDetail) {
+          PerretesContext.of(context).setSelected(null);
+          return MasterAndDetailScreen(title: title);
+        }
+        else {
+          return BreedsListScreen(title: title);
+        }
       }
     );
   }
@@ -75,6 +113,7 @@ class BreedsListScreen extends StatelessWidget {
           title: Text(breed, style: fontStyle),
           trailing: Icon(Icons.keyboard_arrow_right),
           onTap: () async {
+            PerretesContext.of(context).setSelected(breed);
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -112,7 +151,6 @@ class BreedDetailScreen extends StatelessWidget {
 
 class MasterAndDetailScreen extends StatelessWidget {
   final String title;
-  final ValueNotifier<String?> _breed = ValueNotifier<String?>(null);
 
   MasterAndDetailScreen({required this.title});
   
@@ -122,13 +160,13 @@ class MasterAndDetailScreen extends StatelessWidget {
       fontSize: Theme.of(context).textTheme.
       headline5?.fontSize
     );
-
+    ValueNotifier<String?> selectedBreed = PerretesContext.of(context).selectedBreed;
     return Scaffold(
       appBar: AppBar(
         title: Text(app_title),
       ),
       body: ValueListenableBuilder(
-        valueListenable: _breed,
+        valueListenable: selectedBreed, 
         builder: (BuildContext context, String? breed, Widget? child) =>
         Row(
           children: <Widget>[
@@ -139,8 +177,10 @@ class MasterAndDetailScreen extends StatelessWidget {
                 child: BreedsList(
                   tileBuilder: (String breed) => ListTile(
                     title: Text(breed, style: fontStyle),
-                    selected: _breed.value == breed,
-                    onTap: () { _breed.value = breed; },
+                    selected: selectedBreed.value == breed,
+                    onTap: () {
+                      PerretesContext.of(context).setSelected(breed);
+                    },
                   ),
                 ),
               ),
@@ -169,7 +209,6 @@ class MasterAndDetailScreen extends StatelessWidget {
  * Widgets con el contenido de las pantallas
  */
 class BreedsList extends StatelessWidget {
-  final Future<List<String>> _breeds = loadData();
   final Widget Function(String breed) tileBuilder;
   
   BreedsList({required this.tileBuilder});
@@ -182,7 +221,7 @@ class BreedsList extends StatelessWidget {
     );
 
     return FutureBuilder(
-      future: _breeds,
+      future: PerretesContext.of(context).breeds,
       builder: (BuildContext context, AsyncSnapshot<List<String>> snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -214,28 +253,15 @@ class BreedsList extends StatelessWidget {
 }
 
 
-class BreedDetail extends StatefulWidget {
+class BreedDetail extends StatelessWidget {
   final String breed;
 
   const BreedDetail({required this.breed, key}) : super(key: key);
 
   @override
-  _BreedDetailState createState() => _BreedDetailState();
-}
-
-class _BreedDetailState extends State<BreedDetail> {
-  Future<String>? _randomUrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _reload();
-  }
-  
-  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String> (
-      future: _randomUrl,
+    return StreamBuilder<String> (
+      stream: PerretesContext.of(context).photosStream,
       builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -246,14 +272,16 @@ class _BreedDetailState extends State<BreedDetail> {
                   Text('There was a network error'),
                   ElevatedButton(
                     child: Text('Try again'),
-                    onPressed: () { _reload(); },
+                    onPressed: () {
+                      PerretesContext.of(context).setSelected(breed);
+                    },
                   ),
                 ],
               ),
             ),
           );
         }
-        else if (snapshot.connectionState != ConnectionState.done) {
+        else if (!snapshot.hasData) {
           return Center(
             child: CircularProgressIndicator(),
           );
@@ -277,49 +305,14 @@ class _BreedDetailState extends State<BreedDetail> {
                   );
                 },
               ),
-              onTap: () { _reload(); },
+              onTap: () {
+                PerretesContext.of(context).setSelected(breed);
+              }
             )
           );
         }
       },
     );  
   }
-
-  void _reload() {
-    Future<String> url = client.loadBreedImageURL(widget.breed);
-    setState(() { _randomUrl = url; });
-  }
 }
-
-
-/*
- * Cliente del servidor.
- */
-class DogCEOClient {
-  const DogCEOClient();
-  
-  Future<String> loadBreedImageURL(String breed) async {
-    String url = "http://dog.ceo/api/breed/${breed}/images/random";
-    HttpClient httpClient = HttpClient();
-
-    HttpClientRequest request = await httpClient.getUrl(Uri.parse(url));
-    HttpClientResponse response = await request.close();
-    if (response.statusCode != HttpStatus.OK) {
-      throw 'Error getting IP address:\nHttp status ${response.statusCode}';
-    }
-    String json = await response.transform(utf8.decoder).join();
-    Map data = jsonDecode(json);
-    return data['message'];
-  }
-}
-
-
-/*
- * Leer fichero de datos
- */ 
-Future<List<String>> loadData() async {
-  String json = await rootBundle.loadString('data/breeds_list.json');
-  Map data = jsonDecode(json);
-  return data['message'].keys.toList();
-}
-  
+ 
